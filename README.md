@@ -7,8 +7,17 @@ DBReliant is a production-style Go and PostgreSQL reliability lab for reproducin
 ```bash
 cp .env.example .env
 make setup
+make migrate
+make seed
 make build
 make run
+```
+
+`make seed` creates 100 merchants, 1,000 TWD accounts, and 100,000
+deterministic payments by default. Override the payment count when needed:
+
+```bash
+make seed PAYMENT_COUNT=250000
 ```
 
 The API exposes:
@@ -40,4 +49,4 @@ PostgreSQL is configured with `shared_preload_libraries=pg_stat_statements` so t
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 ```
 
-No application schema, tables, constraints, indexes, diagnostic SQL, or workload implementation has been added yet.
+No performance indexes, diagnostic SQL, or reliability experiments have been added yet.

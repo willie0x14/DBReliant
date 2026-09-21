@@ -1,5 +1,10 @@
 # Migrations
 
-TODO: add application schema migrations after the database design is finalized.
+`001_init.sql` creates the initial merchants, accounts, payments, and transfers
+tables. Apply it with:
 
-This directory intentionally does not create tables, constraints, indexes, extensions, or seed data yet.
+```bash
+make migrate
+```
+
+Seed data is intentionally kept outside migrations in `scripts/seed.sql`.
