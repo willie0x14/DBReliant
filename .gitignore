@@ -1,0 +1,12 @@
+.env
+bin/
+coverage.out
+*.test
+
+# Local/editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Docker/local database data
+postgres-data/
