@@ -1,0 +1,23 @@
+dbreliant=# EXPLAIN (ANALYZE, BUFFERS)
+SELECT
+    id,
+    account_id,
+    amount,
+    status,
+    created_at
+FROM payments
+WHERE account_id = 123
+  AND status = 'completed'
+ORDER BY created_at DESC
+LIMIT 100;
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..390.89 rows=100 width=41) (actual time=0.185..1.403 rows=100.00 loops=1)
+   Buffers: shared hit=104
+   ->  Index Scan using idx_payments_account_status_created_at on payments  (cost=0.42..2710.27 rows=694 width=41) (actual time=0.183..1.358 rows=100.00 loops=1)
+         Index Cond: ((account_id = 123) AND (status = 'completed'::text))
+         Index Searches: 1
+         Buffers: shared hit=104
+ Planning Time: 1.685 ms
+ Execution Time: 1.536 ms
+(8 rows)

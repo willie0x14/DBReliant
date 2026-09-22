@@ -1,0 +1,51 @@
+dbreliant=# EXPLAIN (ANALYZE, BUFFERS)
+SELECT
+    id,
+    account_id,
+    amount,
+    status,
+    created_at
+FROM payments
+WHERE account_id = 123
+  AND status = 'completed'
+ORDER BY created_at DESC
+LIMIT 100;
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=16506.07..16517.72 rows=100 width=41) (actual time=73.728..76.677 rows=100.00 loops=1)
+   Buffers: shared hit=9321
+   ->  Gather Merge  (cost=16506.07..16586.90 rows=694 width=41) (actual time=73.722..76.665 rows=100.00 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=9321
+         ->  Sort  (cost=15506.05..15506.77 rows=289 width=41) (actual time=63.653..63.656 rows=78.33 loops=3)
+               Sort Key: created_at DESC
+               Sort Method: top-N heapsort  Memory: 39kB
+               Buffers: shared hit=9321
+               Worker 0:  Sort Method: top-N heapsort  Memory: 39kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 39kB
+               ->  Parallel Seq Scan on payments  (cost=0.00..15495.00 rows=289 width=41) (actual time=0.407..62.658 rows=233.33 loops=3)
+                     Filter: ((account_id = 123) AND (status = 'completed'::text))
+                     Rows Removed by Filter: 333100
+                     Buffers: shared hit=9245
+ Planning Time: 1.520 ms
+ Execution Time: 76.986 ms
+(18 rows)
+------------------------------------------------------------------------------------------------------------------------------------------
+Plan:
+Parallel Seq Scan → Sort → Gather Merge → Limit
+
+Estimated matching rows:
+694
+
+Actual matching rows:
+~700
+
+Rows Removed by Filter:
+~999,300
+
+Shared buffer hits:
+9,321
+
+Execution Time:
+76.986 ms
