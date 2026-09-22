@@ -16,7 +16,7 @@ locking, and operational troubleshooting using a small payment domain.
 
 The diagnostic CLI and workload generator are currently placeholders.
 
-## Current Experiment
+## Current Experiments
 
 ### [Slow Query / Index Optimization](experiments/slow-query/README.md)
 
@@ -26,6 +26,13 @@ The diagnostic CLI and workload generator are currently placeholders.
 - Shared buffer hits: `9,321` -> `104`
 
 These are local lab results, not production benchmarks.
+
+### [Deadlock / Row Locking](experiments/deadlock/README.md)
+
+- Reproduced PostgreSQL `40P01` with conflicting row-lock order
+- Diagnosed blocking with `pg_stat_activity` and `pg_blocking_pids()`
+- Prevented the reproduced pattern with consistent lock ordering
+- Verified `SELECT ... FOR UPDATE` for concurrent balance checks
 
 ## Quick Start
 
@@ -68,12 +75,11 @@ make down
 ## Status
 
 - Implemented: local PostgreSQL setup, schema, deterministic seed data, health
-  endpoint, and slow-query experiment
+  endpoint, slow-query experiment, and deadlock / row-locking experiment
 - Placeholder: diagnostic CLI and load generator
 
 ## Future Work
 
-- Locking and deadlock experiment
 - Connection exhaustion experiment
 - Unsafe schema migration experiment
 
