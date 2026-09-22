@@ -24,8 +24,8 @@ SELECT
     ((payment_number - 1) % 1000) + 1,
     ((payment_number * 7919) % 100000) + 1,
     CASE
-        WHEN (payment_number - 1) % 10 < 7 THEN 'completed'
-        WHEN (payment_number - 1) % 10 < 9 THEN 'processing'
+        WHEN ((payment_number - 1) / 1000) % 10 < 7 THEN 'completed'
+        WHEN ((payment_number - 1) / 1000) % 10 < 9 THEN 'processing'
         ELSE 'failed'
     END,
     TIMESTAMPTZ '2025-01-03 00:00:00+00' + payment_number * INTERVAL '1 second'
