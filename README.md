@@ -6,6 +6,24 @@ problems and testing how to diagnose and fix them.
 The project focuses on backend engineering, PostgreSQL performance, concurrency,
 locking, and operational troubleshooting using a small payment domain.
 
+## Database Schema
+
+![DBReliant entity relationship diagram](docs/images/dbreliant-schema.png)
+
+- Merchants own multiple accounts.
+- Accounts store a balance and currency.
+- Payments belong to an account.
+- Transfers reference both a source account and destination account.
+- Monetary values use integer minor units, and timestamps use `TIMESTAMPTZ`.
+
+The reliability labs use this schema directly:
+
+- Slow Query / Index Optimization queries the `payments` table.
+- Deadlock / Row Locking tests concurrent access to `accounts`.
+- Connection Exhaustion / Pool tests PostgreSQL connection capacity from Go.
+- Unsafe Migration / Online Indexing creates an index on the live `payments`
+  table.
+
 ## Components
 
 - Go HTTP service with a health endpoint and graceful shutdown
