@@ -40,6 +40,14 @@ These are local lab results, not production benchmarks.
 - Added application-side backpressure with `SetMaxOpenConns`
 - Compared queueing, idle connection reuse, and context timeouts
 
+### [Unsafe Migration / Online Indexing](experiments/unsafe-migration/README.md)
+
+- Reproduced writer blocking caused by normal `CREATE INDEX`
+- Observed lock queue amplification to later writers
+- Compared `CREATE INDEX` with `CREATE INDEX CONCURRENTLY`
+- Inspected waits with `pg_stat_activity`, `pg_blocking_pids()`, and
+  `pg_stat_progress_create_index`
+
 ## Quick Start
 
 ```bash
@@ -82,12 +90,8 @@ make down
 
 - Implemented: local PostgreSQL setup, schema, deterministic seed data, health
   endpoint, slow-query experiment, deadlock / row-locking experiment, and
-  connection pool experiment
+  connection pool and online indexing experiments
 - Placeholder: diagnostic CLI and load generator
-
-## Future Work
-
-- Unsafe schema migration experiment
 
 ## PostgreSQL Notes
 
