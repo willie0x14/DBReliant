@@ -34,6 +34,12 @@ These are local lab results, not production benchmarks.
 - Prevented the reproduced pattern with consistent lock ordering
 - Verified `SELECT ... FOR UPDATE` for concurrent balance checks
 
+### [Connection Exhaustion / Connection Pool](experiments/connections/README.md)
+
+- Reproduced PostgreSQL connection exhaustion with an unbounded Go pool
+- Added application-side backpressure with `SetMaxOpenConns`
+- Compared queueing, idle connection reuse, and context timeouts
+
 ## Quick Start
 
 ```bash
@@ -75,12 +81,12 @@ make down
 ## Status
 
 - Implemented: local PostgreSQL setup, schema, deterministic seed data, health
-  endpoint, slow-query experiment, and deadlock / row-locking experiment
+  endpoint, slow-query experiment, deadlock / row-locking experiment, and
+  connection pool experiment
 - Placeholder: diagnostic CLI and load generator
 
 ## Future Work
 
-- Connection exhaustion experiment
 - Unsafe schema migration experiment
 
 ## PostgreSQL Notes
