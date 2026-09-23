@@ -31,9 +31,10 @@ The reliability labs use this schema directly:
 - SQL migrations and deterministic seed data
 - Experiment notes with raw `EXPLAIN (ANALYZE, BUFFERS)` output
 - Prometheus metrics for database pool state, contention, and HTTP requests
+- Transaction-safe transfer API and configurable concurrent load generator
 - `pg_stat_statements` preloaded for future diagnostics
 
-The diagnostic CLI and workload generator are currently placeholders.
+The diagnostic CLI is currently a placeholder.
 
 ## Current Experiments
 
@@ -72,6 +73,12 @@ These are local lab results, not production benchmarks.
 - Exposed database pool metrics and HTTP request count and latency metrics
 - Measured a local 1,000-request workload with 20 concurrent callers
 - Recorded server-side p50, p95, and p99 estimates from histogram buckets
+
+### [Transfer API / Load Experiment](experiments/transfer-load/README.md)
+
+- Transaction-safe `POST /transfers` with deterministic account lock ordering
+- 5,000 local requests with 50 workers and a 10-connection database pool
+- Observed connection-pool backpressure and hot-row contention
 
 ## Quick Start
 
@@ -115,8 +122,8 @@ make down
 
 - Implemented: local PostgreSQL setup, schema, deterministic seed data, health
   endpoint, slow-query experiment, deadlock / row-locking experiment, and
-  connection pool, online indexing, and HTTP latency experiments
-- Placeholder: diagnostic CLI and load generator
+  connection pool, online indexing, HTTP latency, and transfer load experiments
+- Placeholder: diagnostic CLI
 
 ## PostgreSQL Notes
 
