@@ -1,12 +1,17 @@
 COMPOSE ?= docker compose
 PAYMENT_COUNT ?= 100000
 
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
 .PHONY: setup up down reset migrate seed build run test psql
 
 setup: up
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --wait
 
 down:
 	$(COMPOSE) down
@@ -14,7 +19,7 @@ down:
 # Destructive: removes the local PostgreSQL volume and recreates PostgreSQL.
 reset:
 	$(COMPOSE) down -v
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --wait
 
 migrate:
 	$(COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-dbreliant} -d $${POSTGRES_DB:-dbreliant} < migrations/001_init.sql

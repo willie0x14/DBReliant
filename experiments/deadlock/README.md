@@ -72,8 +72,8 @@ Deadlock: A waits for B; B waits for A.
 ```
 
 The practical mitigation is to lock shared resources in a deterministic order.
-For a future transfer API, lock accounts by ascending ID regardless of transfer
-direction:
+The transfer API applies this by locking accounts in ascending ID order,
+regardless of transfer direction:
 
 ```text
 Transfer 20 -> 10: lock 10 -> 20
