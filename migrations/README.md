@@ -1,7 +1,7 @@
 # Migrations
 
-`001_init.sql` creates the initial merchants, accounts, payments, and transfers
-tables. Apply it with:
+`001_init.sql` creates the merchants, accounts, payments, and transfers tables,
+including the composite payments index used by `GET /payments`. Apply it with:
 
 ```bash
 make migrate

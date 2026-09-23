@@ -74,6 +74,13 @@ Average connection-pool wait per wait event was approximately:
 
 Run the API with a 10-connection pool, then start the configurable load generator:
 
+The deterministic seed starts account balances at zero. Fund accounts 1 and 2
+in the local lab database before running successful transfer workloads:
+
+```sql
+UPDATE accounts SET balance = 100000 WHERE id IN (1, 2);
+```
+
 ```bash
 DB_MAX_OPEN_CONNS=10 make run
 go run ./cmd/loadgen -requests 5000 -workers 50 -amount 1

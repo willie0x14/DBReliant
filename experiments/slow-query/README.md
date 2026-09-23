@@ -135,6 +135,13 @@ Seed the 1,000,000-row dataset:
 make seed PAYMENT_COUNT=1000000
 ```
 
+Normal application setup installs the optimized index through migrations. For
+the baseline plan, remove it in the local lab database first:
+
+```sql
+DROP INDEX IF EXISTS idx_payments_account_status_created_at;
+```
+
 Refresh statistics, then run the query above with plan and buffer details:
 
 ```sql
@@ -143,3 +150,4 @@ ANALYZE payments;
 
 Prefix the query with `EXPLAIN (ANALYZE, BUFFERS)`. Record the baseline after a
 warm-up run, apply `create_index.sql`, then repeat the same measurement process.
+Reapplying the index also restores the normal application setup.

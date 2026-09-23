@@ -36,6 +36,9 @@ curl -X POST http://localhost:8080/transfers \
   -d '{"from_account_id":1,"to_account_id":2,"amount":1}'
 ```
 
+Seeded accounts start with zero balances. Fund the source account in the local
+database before expecting a successful transfer.
+
 ### `GET /payments`
 
 Requires `account_id` and `status`. Supported statuses are `processing`,
@@ -159,6 +162,15 @@ Local services:
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000`
 
+Grafana uses local demo credentials `admin` / `admin`.
+
+Seeded account balances are zero. To prepare accounts 1 and 2 for the transfer
+example and load generator, open `make psql` and run:
+
+```sql
+UPDATE accounts SET balance = 100000 WHERE id IN (1, 2);
+```
+
 Useful commands:
 
 ```bash
@@ -170,7 +182,7 @@ make down
 ## Repository Structure
 
 ```text
-cmd/                 API, diagnostic CLI, and load generator entrypoints
+cmd/                 API and load generator entrypoints
 internal/            Database, HTTP, metrics, payment, and transfer packages
 migrations/          Database schema
 scripts/             Deterministic seed data
