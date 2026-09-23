@@ -1,85 +1,139 @@
 # DBReliant
 
-DBReliant is a Go + PostgreSQL reliability lab for reproducing common database
-problems and testing how to diagnose and fix them.
+DBReliant is a Go + PostgreSQL reliability lab for reproducing database failure
+modes and validating practical fixes under controlled local workloads.
 
-The project focuses on backend engineering, PostgreSQL performance, concurrency,
-locking, and operational troubleshooting using a small payment domain.
+The project focuses on query optimization, transactions, row locking, connection
+pooling, safe schema changes, observability, and concurrent load testing. Results
+in this repository are local observations, not production benchmarks.
 
-## Database Schema
+## Architecture
+
+- Go HTTP API using `database/sql` and pgx
+- Configurable `database/sql` connection pool
+- PostgreSQL 18 with deterministic payment data
+- Prometheus metrics and scraping
+- Provisioned Grafana datasource and dashboard
+- Configurable concurrent transfer load generator
 
 ![DBReliant entity relationship diagram](docs/images/dbreliant-schema.png)
 
-- Merchants own multiple accounts.
-- Accounts store a balance and currency.
-- Payments belong to an account.
-- Transfers reference both a source account and destination account.
-- Monetary values use integer minor units, and timestamps use `TIMESTAMPTZ`.
+Monetary values use integer minor units. Timestamps use `TIMESTAMPTZ`.
 
-The reliability labs use this schema directly:
+## APIs
 
-- Slow Query / Index Optimization queries the `payments` table.
-- Deadlock / Row Locking tests concurrent access to `accounts`.
-- Connection Exhaustion / Pool tests PostgreSQL connection capacity from Go.
-- Unsafe Migration / Online Indexing creates an index on the live `payments`
-  table.
+### `POST /transfers`
 
-## Components
+Executes a transfer in one database transaction. Both account rows are locked
+with `SELECT ... FOR UPDATE` in ascending account ID order, regardless of
+transfer direction. This avoids the two-account deadlock pattern reproduced in
+the locking lab. Insufficient funds returns HTTP `409` without changing either
+balance.
 
-- Go HTTP service with a health endpoint and graceful shutdown
-- PostgreSQL 18 in Docker Compose
-- SQL migrations and deterministic seed data
-- Experiment notes with raw `EXPLAIN (ANALYZE, BUFFERS)` output
-- Prometheus metrics for database pool state, contention, and HTTP requests
-- Transaction-safe transfer API and configurable concurrent load generator
-- Indexed payments query API with bounded result limits
-- `pg_stat_statements` preloaded for future diagnostics
+```bash
+curl -X POST http://localhost:8080/transfers \
+  -H "Content-Type: application/json" \
+  -d '{"from_account_id":1,"to_account_id":2,"amount":1}'
+```
 
-The diagnostic CLI is currently a placeholder.
+### `GET /payments`
 
-## Current Experiments
+Requires `account_id` and `status`. Supported statuses are `processing`,
+`completed`, and `failed`. `limit` defaults to 100 and is capped at 1,000.
+Results are ordered by `created_at DESC`.
 
-### [Slow Query / Index Optimization](experiments/slow-query/README.md)
+```bash
+curl "http://localhost:8080/payments?account_id=123&status=completed&limit=5"
+```
 
-- 1,000,000-row payments dataset
-- `Parallel Seq Scan` -> `Index Scan`
-- Median latency: `51.845 ms` -> `1.190 ms`
-- Shared buffer hits: `9,321` -> `104`
+The query uses the `(account_id, status, created_at DESC)` composite B-tree
+index for filtering and ordering.
 
-These are local lab results, not production benchmarks.
+## Reliability Experiments
 
-### [Deadlock / Row Locking](experiments/deadlock/README.md)
+- [Slow Query / Index Optimization](experiments/slow-query/README.md): replaced
+  a parallel sequential scan and sort with an index scan.
+- [Deadlock / Row Locking](experiments/deadlock/README.md): reproduced SQLSTATE
+  `40P01` and prevented the pattern with deterministic lock ordering.
+- [Connection Exhaustion / Pool Backpressure](experiments/connections/README.md):
+  compared unbounded and bounded Go connection pools.
+- [Unsafe Migration / Online Indexing](experiments/unsafe-migration/README.md):
+  compared `CREATE INDEX` with `CREATE INDEX CONCURRENTLY` and observed lock
+  queue amplification.
+- [HTTP Latency / Prometheus Histogram](experiments/http-latency/README.md):
+  validated request counters and histogram-based latency estimates.
+- [Transfer API / Load Experiment](experiments/transfer-load/README.md): exercised
+  transaction locking, pool backpressure, and hot-row contention.
 
-- Reproduced PostgreSQL `40P01` with conflicting row-lock order
-- Diagnosed blocking with `pg_stat_activity` and `pg_blocking_pids()`
-- Prevented the reproduced pattern with consistent lock ordering
-- Verified `SELECT ... FOR UPDATE` for concurrent balance checks
+## Measured Local Results
 
-### [Connection Exhaustion / Connection Pool](experiments/connections/README.md)
+These are controlled local observations. They should not be treated as
+production capacity or latency claims.
 
-- Reproduced PostgreSQL connection exhaustion with an unbounded Go pool
-- Added application-side backpressure with `SetMaxOpenConns`
-- Compared queueing, idle connection reuse, and context timeouts
+### Slow Query
 
-### [Unsafe Migration / Online Indexing](experiments/unsafe-migration/README.md)
+| Metric | Before | After |
+| --- | ---: | ---: |
+| Median latency | ~51.8 ms | ~1.2 ms |
+| Shared buffer hits | 9,321 | 104 |
 
-- Reproduced writer blocking caused by normal `CREATE INDEX`
-- Observed lock queue amplification to later writers
-- Compared `CREATE INDEX` with `CREATE INDEX CONCURRENTLY`
-- Inspected waits with `pg_stat_activity`, `pg_blocking_pids()`, and
-  `pg_stat_progress_create_index`
+The test used a 1,000,000-row payments dataset. The optimized plan used the
+composite index `(account_id, status, created_at DESC)`.
 
-### [HTTP Latency / Prometheus Histogram](experiments/http-latency/README.md)
+### Payments Query Validation
 
-- Exposed database pool metrics and HTTP request count and latency metrics
-- Measured a local 1,000-request workload with 20 concurrent callers
-- Recorded server-side p50, p95, and p99 estimates from histogram buckets
+For `GET /payments` with `LIMIT 5`, local `EXPLAIN (ANALYZE, BUFFERS)` showed:
 
-### [Transfer API / Load Experiment](experiments/transfer-load/README.md)
+- `Index Scan` using `idx_payments_account_status_created_at`
+- No explicit `Sort`
+- 11 shared buffer hits
+- Approximately 0.346 ms execution time
+- Approximately 1.861 ms planning time
 
-- Transaction-safe `POST /transfers` with deterministic account lock ordering
-- 5,000 local requests with 50 workers and a 10-connection database pool
-- Observed connection-pool backpressure and hot-row contention
+This validation used a different limit and should not be compared directly with
+the earlier `LIMIT 100` slow-query benchmark.
+
+### Transfer Load
+
+```yaml
+Endpoint: POST /transfers
+Requests: 5,000
+Concurrent workers: 50
+DB_MAX_OPEN_CONNS: 10
+HTTP 201 responses: 5,000
+db_wait_count_total: 4,990
+db_wait_duration_seconds_total: ~243.25 s
+Estimated p50 handler latency: ~46.4 ms
+Estimated p95 handler latency: ~210.5 ms
+Estimated p99 handler latency: ~249.4 ms
+```
+
+`db_wait_count_total` counts `database/sql` connection-pool wait events, not
+PostgreSQL row-lock waits or necessarily unique requests. Wait duration is
+cumulative across callers. Pool queueing, transaction work, and hot-row locking
+all contributed to the observed handler latency.
+
+## Observability
+
+Prometheus scrapes application metrics from `/metrics`. Grafana uses the
+provisioned Prometheus datasource to visualize:
+
+- HTTP request rate
+- POST p95 handler latency
+- Database pool open, in-use, idle, and maximum connections
+- Database pool wait rate
+- Database pool wait-duration rate
+
+![DBReliant Grafana Dashboard](docs/images/grafana-dashboard.png)
+
+The dashboard demonstrates the expected local behavior:
+
+```text
+concurrent load
+-> bounded database pool
+-> connection-pool queueing
+-> increased wait metrics and tail latency
+```
 
 ## Quick Start
 
@@ -92,44 +146,18 @@ make build
 make run
 ```
 
-`make seed` creates 100 merchants, 1,000 TWD accounts, and 100,000 deterministic
-payments by default. Set a different payment count with:
+`make seed` creates 100 merchants, 1,000 accounts, and 100,000 deterministic
+payments by default. Override the payment count when needed:
 
 ```bash
-make seed PAYMENT_COUNT=250000
+make seed PAYMENT_COUNT=1000000
 ```
 
-The API exposes:
+Local services:
 
-```text
-GET /health
-```
-
-Expected response:
-
-```json
-{"status":"ok"}
-```
-
-### Payments Query API
-
-`GET /payments` requires `account_id` and `status`. Supported statuses are
-`processing`, `completed`, and `failed`. `limit` defaults to 100 and has a
-maximum of 1,000.
-
-```bash
-curl "http://localhost:8080/payments?account_id=123&status=completed&limit=5"
-```
-
-Results are ordered by `created_at DESC`. The parameterized query matches the
-composite B-tree index `(account_id, status, created_at DESC)` introduced in the
-[slow-query experiment](experiments/slow-query/README.md).
-
-A controlled local `EXPLAIN (ANALYZE, BUFFERS)` validation with `LIMIT 5` used
-an `Index Scan` on `idx_payments_account_status_created_at` with no explicit
-`Sort`: 11 shared buffer hits, approximately 0.346 ms execution time, and
-approximately 1.861 ms planning time. This is a local observation, not a
-production benchmark.
+- API: `http://localhost:8080`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
 
 Useful commands:
 
@@ -139,17 +167,22 @@ make psql
 make down
 ```
 
-## Status
+## Repository Structure
 
-- Implemented: local PostgreSQL setup, schema, deterministic seed data, health
-  endpoint, slow-query experiment, deadlock / row-locking experiment, and
-  connection pool, online indexing, HTTP latency, and transfer load experiments
-- Placeholder: diagnostic CLI
-
-## PostgreSQL Notes
-
-PostgreSQL preloads `pg_stat_statements`. Create the extension when needed:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+```text
+cmd/                 API, diagnostic CLI, and load generator entrypoints
+internal/            Database, HTTP, metrics, payment, and transfer packages
+migrations/          Database schema
+scripts/             Deterministic seed data
+experiments/         Reliability lab notes and reproduction files
+queries/diagnostics/ Reusable PostgreSQL diagnostic queries
+monitoring/          Prometheus and Grafana configuration
+docs/images/         ERD and dashboard images
 ```
+
+## Future Work
+
+- Backup and point-in-time recovery exercises
+- Replication and high-availability failure scenarios
+- SLO definitions and alerting rules
+- Additional database failure scenarios
