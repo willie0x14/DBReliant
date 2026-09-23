@@ -32,6 +32,7 @@ The reliability labs use this schema directly:
 - Experiment notes with raw `EXPLAIN (ANALYZE, BUFFERS)` output
 - Prometheus metrics for database pool state, contention, and HTTP requests
 - Transaction-safe transfer API and configurable concurrent load generator
+- Indexed payments query API with bounded result limits
 - `pg_stat_statements` preloaded for future diagnostics
 
 The diagnostic CLI is currently a placeholder.
@@ -109,6 +110,26 @@ Expected response:
 ```json
 {"status":"ok"}
 ```
+
+### Payments Query API
+
+`GET /payments` requires `account_id` and `status`. Supported statuses are
+`processing`, `completed`, and `failed`. `limit` defaults to 100 and has a
+maximum of 1,000.
+
+```bash
+curl "http://localhost:8080/payments?account_id=123&status=completed&limit=5"
+```
+
+Results are ordered by `created_at DESC`. The parameterized query matches the
+composite B-tree index `(account_id, status, created_at DESC)` introduced in the
+[slow-query experiment](experiments/slow-query/README.md).
+
+A controlled local `EXPLAIN (ANALYZE, BUFFERS)` validation with `LIMIT 5` used
+an `Index Scan` on `idx_payments_account_status_created_at` with no explicit
+`Sort`: 11 shared buffer hits, approximately 0.346 ms execution time, and
+approximately 1.861 ms planning time. This is a local observation, not a
+production benchmark.
 
 Useful commands:
 

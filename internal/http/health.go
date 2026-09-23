@@ -4,17 +4,22 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"dbreliant/internal/payment"
 	"dbreliant/internal/transfer"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewMux(transferService *transfer.Service) http.Handler {
+func NewMux(
+	transferService *transfer.Service,
+	paymentService *payment.Service,
+) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/transfers", transferHandler(transferService))
+	mux.HandleFunc("/payments", paymentHandler(paymentService))
 
 	return mux
 }
