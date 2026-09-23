@@ -12,6 +12,7 @@ import (
 
 	"dbreliant/internal/db"
 	httpapi "dbreliant/internal/http"
+	"dbreliant/internal/metrics"
 )
 
 func main() {
@@ -22,6 +23,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect to postgres: %v", err)
 	}
+
+	metrics.RegisterDBMetrics(conn)
+	metrics.RegisterHTTPMetrics()
+
 	stats := conn.Stats()
 	log.Printf(
 		"db pool configured: max_open=%d open=%d idle=%d in_use=%d",
@@ -40,7 +45,7 @@ func main() {
 	port := envOrDefault("HTTP_PORT", "8080")
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpapi.NewMux(),
+		Handler:           metrics.HTTPMiddleware(httpapi.NewMux()),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

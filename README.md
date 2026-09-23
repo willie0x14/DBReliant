@@ -30,6 +30,7 @@ The reliability labs use this schema directly:
 - PostgreSQL 18 in Docker Compose
 - SQL migrations and deterministic seed data
 - Experiment notes with raw `EXPLAIN (ANALYZE, BUFFERS)` output
+- Prometheus metrics for database pool state, contention, and HTTP requests
 - `pg_stat_statements` preloaded for future diagnostics
 
 The diagnostic CLI and workload generator are currently placeholders.
@@ -65,6 +66,12 @@ These are local lab results, not production benchmarks.
 - Compared `CREATE INDEX` with `CREATE INDEX CONCURRENTLY`
 - Inspected waits with `pg_stat_activity`, `pg_blocking_pids()`, and
   `pg_stat_progress_create_index`
+
+### [HTTP Latency / Prometheus Histogram](experiments/http-latency/README.md)
+
+- Exposed database pool metrics and HTTP request count and latency metrics
+- Measured a local 1,000-request workload with 20 concurrent callers
+- Recorded server-side p50, p95, and p99 estimates from histogram buckets
 
 ## Quick Start
 
@@ -108,7 +115,7 @@ make down
 
 - Implemented: local PostgreSQL setup, schema, deterministic seed data, health
   endpoint, slow-query experiment, deadlock / row-locking experiment, and
-  connection pool and online indexing experiments
+  connection pool, online indexing, and HTTP latency experiments
 - Placeholder: diagnostic CLI and load generator
 
 ## PostgreSQL Notes
