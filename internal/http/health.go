@@ -3,11 +3,14 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
+	mux.Handle("/metrics", promhttp.Handler())
 	return mux
 }
 
