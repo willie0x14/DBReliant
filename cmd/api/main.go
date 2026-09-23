@@ -13,6 +13,7 @@ import (
 	"dbreliant/internal/db"
 	httpapi "dbreliant/internal/http"
 	"dbreliant/internal/metrics"
+	"dbreliant/internal/transfer"
 )
 
 func main() {
@@ -26,6 +27,8 @@ func main() {
 
 	metrics.RegisterDBMetrics(conn)
 	metrics.RegisterHTTPMetrics()
+
+	transferService := transfer.NewService(conn)
 
 	stats := conn.Stats()
 	log.Printf(
@@ -45,7 +48,7 @@ func main() {
 	port := envOrDefault("HTTP_PORT", "8080")
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           metrics.HTTPMiddleware(httpapi.NewMux()),
+		Handler:           metrics.HTTPMiddleware(httpapi.NewMux(transferService)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
