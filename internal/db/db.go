@@ -14,9 +14,10 @@ func Open(ctx context.Context, cfg Config) (*sql.DB, error) {
 		return nil, err
 	}
 
-	// TODO(DBReliant): choose MaxOpenConns based on connection experiment.
-	// TODO(DBReliant): choose MaxIdleConns based on connection experiment.
-	// TODO(DBReliant): choose ConnMaxLifetime based on connection experiment.
+	conn.SetMaxOpenConns(cfg.MaxOpenConns)
+	conn.SetMaxIdleConns(cfg.MaxIdleConns)
+	conn.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	conn.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 
 	if err := Ping(ctx, conn); err != nil {
 		_ = conn.Close()

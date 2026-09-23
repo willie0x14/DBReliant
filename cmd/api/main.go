@@ -22,6 +22,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect to postgres: %v", err)
 	}
+	stats := conn.Stats()
+	log.Printf(
+		"db pool configured: max_open=%d open=%d idle=%d in_use=%d",
+		stats.MaxOpenConnections,
+		stats.OpenConnections,
+		stats.Idle,
+		stats.InUse,
+	)
+
 	defer func() {
 		if err := db.Close(conn); err != nil {
 			log.Printf("close postgres connection: %v", err)
